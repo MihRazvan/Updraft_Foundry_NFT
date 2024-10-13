@@ -1,42 +1,57 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8;
 
-import {BasicNft} from "../src/BasicNft.sol";
-import {Test} from "forge-std/Test.sol";
+pragma solidity ^0.8.19;
+
 import {DeployBasicNft} from "../script/DeployBasicNft.s.sol";
+import {BasicNft} from "../src/BasicNft.sol";
+import {Test, console2} from "forge-std/Test.sol";
+import {MintBasicNft} from "../script/Interactions.s.sol";
 
-contract BasicNftTest is Test {
-    DeployBasicNft deployer;
-    BasicNft basicNft;
+contract BasicNftTest is Test, ZkSyncChainChecker {
+    string constant NFT_NAME = "Dogie";
+    string constant NFT_SYMBOL = "DOG";
+    BasicNft public basicNft;
+    DeployBasicNft public deployer;
+    address public deployerAddress;
 
-    string public constant PUG =
+    string public constant PUG_URI =
         "ipfs://bafybeig37ioir76s7mg5oobetncojcm3c3hxasyd4rvid4jqhy4gkaheg4/?filename=0-PUG.json";
+    address public constant USER = address(1);
 
-    address public USER = makeAddr("user");
-
-    function setUp() external {
-        deployer = new DeployBasicNft();
-        basicNft = deployer.run();
+    function setUp() public {
+        if (!isZkSyncChain()) {
+            deployer = new DeployBasicNft();
+            basicNft = deployer.run();
+        } else {
+            basicNft = new BasicNft();
+        }
     }
 
-    function testNameIsCorrect() public {
-        string memory expectedName = "Dogie";
-        string memory actualName = basicNft.name();
-        //nu e corect, assertEq nu poate compara strings
-        //assertEq(expectedName, actualName);
+    function testInitializedCorrectly() public view {
         assert(
-            keccak256(abi.encodePacked(expectedName)) ==
-                keccak256(abi.encodePacked(actualName))
+            keccak256(abi.encodePacked(basicNft.name())) ==
+                keccak256(abi.encodePacked((NFT_NAME)))
+        );
+        assert(
+            keccak256(abi.encodePacked(basicNft.symbol())) ==
+                keccak256(abi.encodePacked((NFT_SYMBOL)))
         );
     }
 
-    function testCanMindAndHaveABalance() public {
+    function testCanMintAndHaveABalance() public {
         vm.prank(USER);
-        basicNft.mintNft(PUG);
+        basicNft.mintNft(PUG_URI);
+
         assert(basicNft.balanceOf(USER) == 1);
+    }
+
+    function testTokenURIIsCorrect() public {
+        vm.prank(USER);
+        basicNft.mintNft(PUG_URI);
+
         assert(
-            keccak256(abi.encodePacked(PUG)) ==
-                keccak256(abi.encodePacked(basicNft.tokenURI(0)))
+            keccak256(abi.encodePacked(basicNft.tokenURI(0))) ==
+                keccak256(abi.encodePacked(PUG_URI))
         );
     }
 }
