@@ -5,6 +5,8 @@ import {ERC721} from "@openzeppelin/contracts/token/ERC721/ERC721.sol";
 import {Base64} from "@openzeppelin/contracts/utils/Base64.sol";
 
 contract MoodNft is ERC721 {
+    error MoodNft__CantFlipMoodIfNotOwner();
+
     uint256 private s_tokenCounter;
     string private s_happySvgImageUri;
     string private s_sadSvgImageUri;
@@ -25,6 +27,20 @@ contract MoodNft is ERC721 {
         s_sadSvgImageUri = sadSvgImageUri;
     }
 
+    function flipMood(uint256 tokenId) public {
+        if (
+            getApproved(tokenId) != msg.sender && ownerOf(tokenId) != msg.sender
+        ) {
+            revert MoodNft__CantFlipMoodIfNotOwner();
+        }
+
+        if (s_tokenIdToMood[tokenId] == Mood.HAPPY) {
+            s_tokenIdToMood[tokenId] = Mood.SAD;
+        } else {
+            s_tokenIdToMood[tokenId] = Mood.HAPPY;
+        }
+    }
+
     function mintNft() public {
         _safeMint(msg.sender, s_tokenCounter);
         s_tokenIdToMood[s_tokenCounter] = Mood.HAPPY;
@@ -38,13 +54,10 @@ contract MoodNft is ERC721 {
     function tokenURI(
         uint256 tokenId
     ) public view virtual override returns (string memory) {
-        if (ownerOf(tokenId) == address(0)) {
-            revert ERC721Metadata__URI_QueryFor_NonExistentToken();
-        }
-        string memory imageURI = s_happySvgUri;
+        string memory imageURI = s_happySvgImageUri;
 
-        if (s_tokenIdToState[tokenId] == NFTState.SAD) {
-            imageURI = s_sadSvgUri;
+        if (s_tokenIdToMood[tokenId] == Mood.SAD) {
+            imageURI = s_sadSvgImageUri;
         }
         return
             string(
